@@ -1,4 +1,4 @@
-from project import clean_data
+from project import clean_data, generate_sequences, construct_graph
 from pytest import mark
 import pandas as pd
 import networkx as nx
@@ -214,23 +214,168 @@ def test_clean_data(dna_df: pd.DataFrame, expected: pd.DataFrame) -> None:
     assert clean_data(dna_df).equals(expected)
 
 
-# @mark.parametrize(
-#     'dna_df, expected_json_str',
-#     [
-#         # not given, you have to choose your own JSON structure
-#     ], )
-# def test_generate_sequences(dna_df: pd.DataFrame, expected_json_str: str) -> None:
-#     assert (generate_sequences(dna_df) == expected_json_str)
+@mark.parametrize(
+    'dna_df, expected_json_str',
+    [(
+        pd.DataFrame(data=[
+            [1, 1, 0, 0, 0, 1],
+            [1, 2, 0, 0, 0, 1]],
+            columns=['SegmentNr', 'Position', 'A', 'C', 'G', 'T']),
+        '[{"SegmentNr":1,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1}]'
+    ),
+        (
+        # empty dataframe
+        pd.DataFrame(data=[],
+                     columns=['SegmentNr', 'Position', 'A', 'C', 'G', 'T']),
+        '[]'
+    ),
+        (
+        # multiple segments
+        pd.DataFrame(data=[
+            [1, 1, 0, 0, 0, 1],
+            [1, 2, 0, 0, 0, 1],
+            [1, 3, 0, 1, 0, 0],
+            [2, 1, 0, 0, 0, 1],
+            [2, 2, 0, 1, 0, 0],
+            [2, 3, 0, 1, 0, 0],
+            [2, 4, 1, 0, 0, 0],
+            [3, 1, 0, 0, 1, 0],
+            [3, 2, 1, 0, 0, 0],
+            [3, 3, 0, 1, 0, 0],
+            [3, 4, 1, 0, 0, 0],
+            [4, 1, 0, 0, 0, 1],
+            [5, 1, 0, 0, 0, 1],
+            [5, 2, 0, 1, 0, 0]],
+            columns=['SegmentNr', 'Position', 'A', 'C', 'G', 'T']),
+        '[{"SegmentNr":1,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":1,"Position":3,"A":0,"C":1,"G":0,"T":0},' +
+        '{"SegmentNr":2,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":2,"Position":2,"A":0,"C":1,"G":0,"T":0},' +
+        '{"SegmentNr":2,"Position":3,"A":0,"C":1,"G":0,"T":0},' +
+        '{"SegmentNr":2,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+        '{"SegmentNr":3,"Position":1,"A":0,"C":0,"G":1,"T":0},' +
+        '{"SegmentNr":3,"Position":2,"A":1,"C":0,"G":0,"T":0},' +
+        '{"SegmentNr":3,"Position":3,"A":0,"C":1,"G":0,"T":0},' +
+        '{"SegmentNr":3,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+        '{"SegmentNr":4,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":5,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+        '{"SegmentNr":5,"Position":2,"A":0,"C":1,"G":0,"T":0}]'
+
+    )
+    ],
+)
+def test_generate_sequences(dna_df: pd.DataFrame, expected_json_str: str) -> None:
+    assert (generate_sequences(dna_df) == expected_json_str)
 
 
-# @mark.parametrize(
-#     'json_data, k,  expected_edge_list',
-#     [
-#         # create a JSON in your own format that contains one segment with sequence "ATTACTC"
-#         # for k = 5, it should output a graph with the edges: [('ATTA', 'TTAC'), ('TTAC', 'TACT'), ('TACT', 'ACTC')]
-#     ])
-# def test_construct_graph(json_data: str, k: int, expected_edge_list: list) -> None:
-#     pass
+@mark.parametrize(
+    'json_data, k,  expected_edge_list',
+    [
+        # create a JSON in your own format that contains one segment with sequence "ATTACTC"
+        # for k = 5, it should output a graph with the edges: [('ATTA', 'TTAC'), ('TTAC', 'TACT'), ('TACT', 'ACTC')]
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":6,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":7,"A":0,"C":1,"G":0,"T":0}]',
+            5,
+            [('ATTA', 'TTAC'), ('TTAC', 'TACT'), ('TACT', 'ACTC')]
+        ),
+        # multiple sequences without overlapping k-mers
+        # ATGCTAA, CTCAATA
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":1,"Position":4,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":6,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":7,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":1,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":2,"Position":3,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":5,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":6,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":2,"Position":7,"A":1,"C":0,"G":0,"T":0}]',
+            4,
+            [('ATG', 'TGC'), ('TGC', 'GCT'), ('GCT', 'CTA'), ('CTA', 'TAA'), ('CTC', 'TCA'),
+             ('TCA', 'CAA'), ('CAA', 'AAT'), ('AAT', 'ATA')]
+        ),
+        # multiple sequences with overlapping sequences
+        # ATGCTAA, CTCGCTA
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":1,"Position":4,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":6,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":7,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":1,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":2,"Position":3,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":4,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":2,"Position":5,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":6,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":2,"Position":7,"A":1,"C":0,"G":0,"T":0}]',
+            4,
+            [('ATG', 'TGC'), ('TGC', 'GCT'), ('GCT', 'CTA'), ('CTA', 'TAA'), ('CTC', 'TCG'),
+             ('TCG', 'CGC'), ('CGC', 'GCT'), ('GCT', 'CTA')]
+        ),
+        # k of 2 (nodes of one letter) + node with connection to itself
+        # ATGCG, TAA
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":1,"Position":4,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":2,"Position":1,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":2,"Position":2,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":2,"Position":3,"A":1,"C":0,"G":0,"T":0}]',
+            2,
+            [('A', 'T'), ('T', 'G'), ('G', 'C'),
+             ('C', 'G'), ('T', 'A'), ('A', 'A')]
+        ),
+        # segment with repeating edges within itself
+        # ATGACTGAA
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":1,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":0,"C":1,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":6,"A":0,"C":0,"G":0,"T":1},' +
+            '{"SegmentNr":1,"Position":7,"A":0,"C":0,"G":1,"T":0},' +
+            '{"SegmentNr":1,"Position":8,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":9,"A":1,"C":0,"G":0,"T":0}]',
+            3,
+            [('AT', 'TG'), ('TG', 'GA'), ('GA', 'AC'), ('AC', 'CT'),
+             ('CT', 'TG'), ('TG', 'GA'), ('GA', 'AA')]
+        ),
+        # segment consisting of same letter
+        # AAAAAAA
+        (
+            '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":2,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":3,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":4,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":5,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":6,"A":1,"C":0,"G":0,"T":0},' +
+            '{"SegmentNr":1,"Position":7,"A":1,"C":0,"G":0,"T":0}]',
+            4,
+            [('AAA', 'AAA'), ('AAA', 'AAA'), ('AAA', 'AAA'), ('AAA', 'AAA')]
+        )
+    ])
+def test_construct_graph(json_data: str, k: int, expected_edge_list: list) -> None:
+    assert (sorted(list(construct_graph(json_data, k).edges()))
+            ) == sorted(expected_edge_list)
 
 # @mark.parametrize(
 #     'DNA_edge_list,  expected_validity, tname',
