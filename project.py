@@ -3,8 +3,13 @@ author: Elisa Verhofstadt
 studentnumber: 2261793
 """
 import networkx as nx
+from networkx.drawing import planar_layout
 import pandas as pd
+import matplotlib.pyplot as plt
+import json
 from typing import List
+
+# read the csv file given its name
 
 
 def read_csv(name: str) -> pd.DataFrame:
@@ -17,7 +22,7 @@ def read_csv(name: str) -> pd.DataFrame:
         for index_r, reading in enumerate(df_as_list):
             # split values, remove whitespace
             df_as_list[index_r] = reading.strip().split(',')
-            # record every values as integers
+            # record every value as integers
             for index_v, value in enumerate(df_as_list[index_r]):
                 df_as_list[index_r][index_v] = eval(value)
 
@@ -35,7 +40,8 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # remove selected segments
     df = df.query('SegmentNr not in @to_remove_segment')
-    return df
+    # reset index as several segments or positions have been removed
+    return df.reset_index(drop=True)
 
 
 def _clean_positions(df: pd.DataFrame):
@@ -88,7 +94,8 @@ def _clean_segments(df: pd.DataFrame, to_remove_segment: list) -> list:
     segments = df['SegmentNr'].unique()
     segment_list = []
     for segment in segments:
-        # for each segment make list of lists with every measurement, don't include segment number
+        # for each segment make list of lists with every measurement,
+        # don't include segment number
         segment_list += [df.query('SegmentNr == @segment')
                          [['A', 'C', 'G', 'T']].values.tolist()]
 
@@ -104,17 +111,113 @@ def _clean_segments(df: pd.DataFrame, to_remove_segment: list) -> list:
 
 # Generate JSON sequences from the dataframe
 
+def generate_sequences(df: pd.DataFrame) -> str:
+    return df.to_json(indent=0, orient='records')
+
+
 # Construct de Bruijn graph
 
+
+def construct_graph(json_data: str, k: int) -> nx.MultiDiGraph:
+    ''' TO FINISH '''
+    # initiate graph
+    de_Bruij_G = nx.MultiDiGraph()
+
+    # turn json object into dictionary
+    dna_dict = json.loads(json_data)
+
+    # dna_dict is now list with dict for each entry
+    # select all segment numbers
+    segment_nrs = set([position['SegmentNr'] for position in dna_dict])
+    # add nodes for each sequence
+    for segment_nr in segment_nrs:
+        # reconstruct DNA structure single segment
+        single_segment = [
+            position for position in dna_dict if position['SegmentNr'] == segment_nr]
+        dna_str = _get_dna_string(single_segment)
+
+        # get all k-mers
+        k_mer_list = _generate_k_mers(dna_str, k)
+
+        # for each k-mer get two (k-1) mers -> L and R
+        for k_mer in k_mer_list:
+            left = k_mer[:-1]  # L
+            right = k_mer[1:]  # R
+
+            # for each L and R add a node and edge from left to right
+            de_Bruij_G.add_edge(left, right)
+    return de_Bruij_G
+
+
+def _generate_k_mers(dna_str: str, k: int) -> list:
+    ''' TO FINISH'''
+    k_mers = []
+    # determine how many k-mers we will return
+    n_k_mer = len(dna_str) - k + 1
+
+    # slice dna_str n_k_mer times, each time changing one place
+    n_begin = 0
+    n_end = len(dna_str) - n_k_mer + 1
+    for _ in range(n_k_mer):
+        k_mers += [dna_str[n_begin:n_end]]
+        # update slicers
+        n_begin += 1
+        n_end += 1
+    return k_mers
+
+
+def _get_dna_string(dna_data: List[dict]) -> str:
+    ''' TO FINISH'''
+    dna_str = []
+    # loop through all positions
+    for line in dna_data:
+        # each line is a dictionary
+        # select only the keys where value is 1 for dna letter
+        dna_str += [key for (key, value) in line.items() if value == 1 and
+                    (key != 'SegmentNr' and key != 'Position')]
+    return ''.join(dna_str)
+
+
 # Plot the de Bruijn graph
+def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
+    pos = nx.planar_layout(graph)
+    # use matplotlib to plot
+    plt.figure()
+    nx.draw_networkx(graph, pos, with_labels=True)
+    # Save the plot to the output file
+    plt.savefig(filename)
+    plt.close()
 
 # Check whether the de Bruijn graph can be sequenced
 
 # Construct DNA sequence
 
+
 # Save DNA sequence or write the error message
 # testing
 if __name__ == "__main__":
-    #df_1 = read_csv('DNA_1_5.csv')
-    df_clean = read_csv('DNA_1_5_to_clean.csv')
-    print(clean_data(df_clean))
+    # df_1 = read_csv('DNA_1_5.csv')
+    df_clean = pd.DataFrame(data=[
+        [1, 1, 0, 0, 0, 1],
+        [1, 2, 0, 0, 0, 1],
+        [1, 3, 0, 1, 0, 0],
+        [2, 1, 0, 0, 0, 1],
+        [2, 2, 0, 1, 0, 0],
+        [2, 3, 0, 1, 0, 0],
+        [2, 4, 1, 0, 0, 0],
+        [3, 1, 0, 0, 1, 0],
+        [3, 2, 1, 0, 0, 0],
+        [3, 3, 0, 1, 0, 0],
+        [3, 4, 1, 0, 0, 0],
+        [4, 1, 0, 0, 0, 1],
+        [5, 1, 0, 0, 0, 1],
+        [5, 2, 0, 1, 0, 0]],
+        columns=['SegmentNr', 'Position', 'A', 'C', 'G', 'T'])
+    json_file = generate_sequences(clean_data(df_clean))
+    G = construct_graph(json_file, 3)
+    json_file2 = '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' + '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' + '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' + '{"SegmentNr":1,"Position":4,"A":1,"C":0,"G":0,"T":0},' + \
+        '{"SegmentNr":1,"Position":5,"A":0,"C":1,"G":0,"T":0},' + '{"SegmentNr":1,"Position":6,"A":0,"C":0,"G":0,"T":1},' + \
+        '{"SegmentNr":1,"Position":7,"A":0,"C":0,"G":1,"T":0},' + \
+        '{"SegmentNr":1,"Position":8,"A":1,"C":0,"G":0,"T":0},' + \
+        '{"SegmentNr":1,"Position":9,"A":1,"C":0,"G":0,"T":0}]'
+    G2 = construct_graph(json_file2, 3)
