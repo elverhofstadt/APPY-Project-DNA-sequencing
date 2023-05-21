@@ -1,4 +1,4 @@
-from project import clean_data, generate_sequences, construct_graph
+from project import clean_data, generate_sequences, construct_graph, is_valid_graph
 from pytest import mark
 import pandas as pd
 import networkx as nx
@@ -377,20 +377,52 @@ def test_construct_graph(json_data: str, k: int, expected_edge_list: list) -> No
     assert (sorted(list(construct_graph(json_data, k).edges()))
             ) == sorted(expected_edge_list)
 
-# @mark.parametrize(
-#     'DNA_edge_list,  expected_validity, tname',
-#     [
-#         (
-#                 [('ATTA', 'TTAC'), ('TTAC', 'TACT'), ('TACT', 'ACTC'), ('ACTC', 'ATTA')],
-#                 True
-#         )
-#     ])
-# def test_is_valid_graph(DNA_edge_list: list, expected_validity: bool) -> None:
-#     debruijn_graph = nx.MultiDiGraph()
-#     for edge in DNA_edge_list:
-#         debruijn_graph.add_edge(edge[0], edge[1])
 
-#     assert is_valid_graph(debruijn_graph) is expected_validity
+@mark.parametrize(
+    'DNA_edge_list,  expected_validity',
+    [
+        (
+            [('ATTA', 'TTAC'), ('TTAC', 'TACT'),
+             ('TACT', 'ACTC'), ('ACTC', 'ATTA')],
+            True
+        ),
+        # weakly connected, but in and out degree is not correct (4 different in and out)
+        (
+            [('ATT', 'TTA'), ('TTA', 'TAG'), ('TAG', 'AGT'),
+             ('TAG', 'AGA'), ('AGA', 'GAA'), ('AGA', 'GAT'),
+             ('GAT', 'ATT')],
+            False
+        ),
+
+        # not weakly connected, but in and out degree is correct
+        (
+            [('ATT', 'TTA'), ('TTA', 'TAG'), ('TAG', 'GAT'), ('GAT', 'ATT'),
+             ('GTC', 'TCA'), (('TCA', 'CAC'))],
+            False
+        ),
+
+        # not weakly connected, in and out degree is not correct
+        (
+            [('ATT', 'TTA'), ('TTA', 'TAG'), ('TTA', 'TAT'),
+             ('TAG', 'GAT'), ('GAT', 'ATT'),
+             ('GTC', 'TCA'), (('TCA', 'CAC'))],
+            False
+        ),
+
+        # segment that repeats within itself
+        (
+            [('ATT', 'TTA'), ('TTA', 'TAG'), ('TAG', 'AGT'),
+             ('AGT', 'GTA'), ('GTA', 'TTA')],
+            True
+        )
+
+    ])
+def test_is_valid_graph(DNA_edge_list: list, expected_validity: bool) -> None:
+    debruijn_graph = nx.MultiDiGraph()
+    for edge in DNA_edge_list:
+        debruijn_graph.add_edge(edge[0], edge[1])
+
+    assert is_valid_graph(debruijn_graph) is expected_validity
 
 
 # @mark.parametrize(
