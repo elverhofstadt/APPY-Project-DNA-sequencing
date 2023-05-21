@@ -181,7 +181,7 @@ def _get_dna_string(dna_data: List[dict]) -> str:
 # Plot the de Bruijn graph
 def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
     pos = nx.planar_layout(graph)
-    # use matplotlib to plot
+    # use matplotlib make to plot
     plt.figure()
     nx.draw_networkx(graph, pos, with_labels=True)
     # Save the plot to the output file
@@ -190,10 +190,42 @@ def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
 
 # Check whether the de Bruijn graph can be sequenced
 
+
+def is_valid_graph(graph: nx.MultiDiGraph) -> bool:
+    ''' TO FINISH'''
+    connectivity = True
+    # store how many nodes differ in in and out degree
+    differ_degree = 0
+    for node in list(graph.nodes()):
+        # to pass for the connectivity test the result of the dfs should be equal
+        # to all the edges in the graph
+        if sorted(_dfs_recursive(graph, node, [])) != sorted(list(graph.nodes())):
+            connectivity = False
+        # check in and out degree of this node
+        if graph.in_degree(node) != graph.out_degree(node):
+            differ_degree += 1
+    # only returns true is both conditions are met:
+    # there is connectivity + amount node that differ in in and out degree
+    return connectivity and (differ_degree == 0 or differ_degree == 2)
+
+
+def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: list) -> list:
+    '''TO FINISH'''
+    if visited_list is None:
+        visited_list = []
+    visited_list.append(starting_node)
+    # loop through all neigbours (both directions -> weakly connected)
+    for neigbour_node in set(list(graph.neighbors(starting_node)) + list(graph.predecessors(starting_node))):
+        if neigbour_node not in visited_list:
+            _dfs_recursive(graph, neigbour_node, visited_list)
+    # only reaches here when all possible nodes are traversed
+    return visited_list
+
 # Construct DNA sequence
 
-
 # Save DNA sequence or write the error message
+
+
 # testing
 if __name__ == "__main__":
     # df_1 = read_csv('DNA_1_5.csv')
