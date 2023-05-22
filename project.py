@@ -193,20 +193,29 @@ def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
 
 def is_valid_graph(graph: nx.MultiDiGraph) -> bool:
     ''' TO FINISH'''
-    connectivity = True
-    # store how many nodes differ in in and out degree
+    connectivity_check = True
+    # store whether or not a first or last node has been identified
+    first_node = False
+    last_node = False
+    # keep track of how many nodes with different degrees have been encountered
     differ_degree = 0
     for node in list(graph.nodes()):
         # to pass for the connectivity test the result of the dfs should be equal
         # to all the edges in the graph
         if sorted(_dfs_recursive(graph, node, [])) != sorted(list(graph.nodes())):
-            connectivity = False
+            connectivity_check = False
         # check in and out degree of this node
         if graph.in_degree(node) != graph.out_degree(node):
             differ_degree += 1
-    # only returns true is both conditions are met:
-    # there is connectivity + amount node that differ in in and out degree
-    return connectivity and (differ_degree == 0 or differ_degree == 2)
+            if graph.in_degree(node) - graph.out_degree(node) == 1:
+                last_node = True
+            elif graph.out_degree(node) - graph.in_degree(node) == 1:
+                first_node = True
+    # second condition check: if nodes with different degrees are present one should be first and other one last
+    degree_check = (last_node and first_node and differ_degree ==
+                    2) or differ_degree == 0
+    # only returns true is both conditions are met
+    return connectivity_check and degree_check
 
 
 def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: list) -> list:
@@ -222,6 +231,33 @@ def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: lis
     return visited_list
 
 # Construct DNA sequence
+
+
+def construct_dna_sequence(graph: nx.MultiDiGraph):
+    # check if graph is valid
+    if is_valid_graph(graph):
+        # add extra edge if graph is not eulerian yet
+        _make_eulerian_graph(graph)
+    else:
+        # idk yet what i should do here/if this should be here
+        print('you enetred a graph where no path can be found')
+
+
+def _make_eulerian_graph(graph: nx.MultiDiGraph):
+    '''TO FINISH'''
+    # we know that graph is valid, so differ_degree is either 0 or 2
+    # if 0, we have to do nothing
+    # if 2, we have to connect beginning to ending node
+    begin = ''
+    end = ''
+    for node in graph.nodes():
+        if node.in_degree() - node.out_degree() == 1:
+            end = node
+        elif node.in_degree() - node.out_degree() == -1:
+            begin = node
+    # if begin and end are defined, if not they are still '' and return False
+    if begin and end:
+        graph.add_edge(begin, end)
 
 # Save DNA sequence or write the error message
 
