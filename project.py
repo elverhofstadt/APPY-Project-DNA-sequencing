@@ -3,8 +3,8 @@ author: Elisa Verhofstadt
 studentnumber: 2261793
 """
 import networkx as nx
-from networkx.drawing import planar_layout
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import json
 from typing import List
@@ -234,10 +234,27 @@ def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: lis
 
 
 def construct_dna_sequence(graph: nx.MultiDiGraph):
+    ''' TO FINISH'''
     # check if graph is valid
     if is_valid_graph(graph):
         # add extra edge if graph is not eulerian yet
         _make_eulerian_graph(graph)
+        # apply hierhozer algorithm to get sequence
+        sequence_index_list = _hozier_algorithm(
+            _from_edges_to_matrix(graph), 0, [])
+        # translate result into corresponding names of the nodes
+        sequence_list = [list(graph.nodes())[index]
+                         for index in sequence_index_list]
+
+        # combine all nodes into full sequence
+        full_sequence = ''
+        for index, node in enumerate(sequence_list):
+            if index == 0:
+                full_sequence += node
+            else:
+                full_sequence += node[-1]
+        return full_sequence
+
     else:
         # idk yet what i should do here/if this should be here
         print('you enetred a graph where no path can be found')
@@ -251,17 +268,56 @@ def _make_eulerian_graph(graph: nx.MultiDiGraph):
     begin = ''
     end = ''
     for node in graph.nodes():
-        if node.in_degree() - node.out_degree() == 1:
+        if graph.in_degree(node) - graph.out_degree(node) == 1:
             end = node
-        elif node.in_degree() - node.out_degree() == -1:
+        elif graph.in_degree(node) - graph.out_degree(node) == -1:
             begin = node
     # if begin and end are defined, if not they are still '' and return False
     if begin and end:
         graph.add_edge(begin, end)
 
+
+def _from_edges_to_matrix(graph: nx.MultiDiGraph) -> np.array:
+    # make matrix with overview of connections between nodes
+    edges_matrix = np.zeros(
+        (graph.number_of_nodes(), graph.number_of_nodes()), dtype=int)
+    for start_node, end_node in graph.edges():
+        start_index = list(graph.nodes()).index(start_node)
+        end_index = list(graph.nodes()).index(end_node)
+        # directed graph: only conncection from start to end
+        # this way rows represent nodes where the edge starts and
+        # columns represents nodes where the edge ends
+        # += 1 because one edge can be traversed multiple times
+        edges_matrix[start_index][end_index] += 1
+    return edges_matrix
+
+
+def _hozier_algorithm(matrix: np.array, starting_row_index: int, full_sequence: list):
+    '''
+    output: list of list, so for each list this is one 'loop', later we have to merge them into 
+    each other, also to do this we have to all the beginning node to the end of each list -> TO FINISH
+    '''
+    # identify all values in this row that have a 1; meaning that they are an
+    # ending node of this edge
+    ending_nodes_index = np.where(matrix[starting_row_index] > 0)[0]
+    # use ending node as beginning node by using recursive function
+    for ending_node_index in ending_nodes_index:
+        # remove edge from the edge_matrix
+        matrix[starting_row_index][ending_node_index] -= 1
+        # recursive function: look at edges or ending node
+        _hozier_algorithm(matrix, ending_node_index, full_sequence)
+
+        # if we have completed a cycle and need to backtrack we are at the end
+        # so we can add this node to our full_sequence list
+        full_sequence.insert(0, starting_row_index)
+
+        # stopping condition: if we have a matrix with all zeroes, all edges have been added
+        if (matrix == np.zeros(matrix.shape, dtype=int)).all():
+            # transform list of indices of nodes into the string of the node
+            return full_sequence
+
+
 # Save DNA sequence or write the error message
-
-
 # testing
 if __name__ == "__main__":
     # df_1 = read_csv('DNA_1_5.csv')
