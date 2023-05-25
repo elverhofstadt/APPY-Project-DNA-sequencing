@@ -8,12 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 from typing import List
+import sys
 
 # read the csv file given its name
 
 
 def read_csv(name: str) -> pd.DataFrame:
-    '''Reads in csv file and returns pandas DataFrame'''
+    '''Read in csv file and returns pandas DataFrame of the same information'''
     with open(name, mode='r') as dna_file:
         # every reading as string in a list
         df_as_list = dna_file.readlines()
@@ -33,6 +34,17 @@ def read_csv(name: str) -> pd.DataFrame:
 
 # Clean the dataframe
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
+    '''
+    Filter out specified mistakes in the input DataFrame related to segments and positions.
+
+    Input: DataFrame to be cleaned.
+
+    Returns cleaned DataFrame without the specified errors.
+
+    The function applies a series of checks and cleaning operations to remove the identified errors.
+    It returns a new DataFrame that excludes the prespecified mistakes.
+
+    '''
     # check everything that involves the position of the segments: missing, duplicate, errors
     df, to_remove_segment = _clean_positions(df)
     # check for double occurring segments
@@ -45,6 +57,14 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _clean_positions(df: pd.DataFrame):
+    '''
+    Clean positions in a DataFrame by performing checks for identifying and removing erroneous data.
+
+    Input: DataFrame containing position information.
+
+    Returns a cleaned DataFrame (in function of positions) and a list of segments to be removed.
+
+    '''
     # identify all the unique sequence numbers
     segments = df['SegmentNr'].unique()
 
@@ -90,7 +110,13 @@ def _clean_positions(df: pd.DataFrame):
 
 
 def _clean_segments(df: pd.DataFrame, to_remove_segment: list) -> list:
-    #
+    '''
+    Identify duplicate segments from the input DataFrame.
+
+    Input: DataFrame containing segment information and list of segments to be removed.
+
+    Returns an updated list of segments to be removed.
+    '''
     segments = df['SegmentNr'].unique()
     segment_list = []
     for segment in segments:
@@ -112,14 +138,27 @@ def _clean_segments(df: pd.DataFrame, to_remove_segment: list) -> list:
 # Generate JSON sequences from the dataframe
 
 def generate_sequences(df: pd.DataFrame) -> str:
+    '''
+    Convert the input DataFrame to a JSON string representation.
+
+    Input: DataFrame containing sequences.
+
+    Returns SON string representation of the DataFrame.
+    '''
     return df.to_json(indent=0, orient='records')
 
 
 # Construct de Bruijn graph
 
-
 def construct_graph(json_data: str, k: int) -> nx.MultiDiGraph:
-    ''' TO FINISH '''
+    ''' 
+    Construct a de Bruijn graph from the DNA sequences provided in JSON format.
+
+    Input: JSON string representing the DNA sequences and
+    length of k-mers to be used in constructing the graph.
+
+    Returns the constructed de Bruijn graph.
+    '''
     # initiate graph
     de_Bruij_G = nx.MultiDiGraph()
 
@@ -150,7 +189,14 @@ def construct_graph(json_data: str, k: int) -> nx.MultiDiGraph:
 
 
 def _generate_k_mers(dna_str: str, k: int) -> list:
-    ''' TO FINISH'''
+    '''
+    Generate k-mers from the given DNA string.
+
+    Input: DNA string from which k-mers are generated
+    and length of the k-mers to be generated.
+
+    Returns a list of generated k-mers.
+    '''
     k_mers = []
     # determine how many k-mers we will return
     n_k_mer = len(dna_str) - k + 1
@@ -167,7 +213,13 @@ def _generate_k_mers(dna_str: str, k: int) -> list:
 
 
 def _get_dna_string(dna_data: List[dict]) -> str:
-    ''' TO FINISH'''
+    '''
+    Retrieve the DNA string from the given DNA data.
+
+    Input: list of dictionaries representing DNA data.
+
+    Returns DNA string extracted from the DNA data.
+    '''
     dna_str = []
     # loop through all positions
     for line in dna_data:
@@ -180,6 +232,11 @@ def _get_dna_string(dna_data: List[dict]) -> str:
 
 # Plot the de Bruijn graph
 def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
+    '''
+    Plot the de Bruijn graph using NetworkX and save it to a file.
+
+    Input: de Bruijn graph to be plotted and output filename to save the plot.
+    '''
     pos = nx.planar_layout(graph)
     # use matplotlib make to plot
     plt.figure()
@@ -192,7 +249,13 @@ def plot_graph(graph: nx.MultiDiGraph, filename: str) -> None:
 
 
 def is_valid_graph(graph: nx.MultiDiGraph) -> bool:
-    ''' TO FINISH'''
+    '''
+    Check if a given de Bruijn graph contains a valid Euler's path based on connectivity and node degree.
+
+    Input: de Bruijn graph to be checked.
+
+    Returns True if the graph is valid, False if not.
+    '''
     connectivity_check = True
     # store whether or not a first or last node has been identified
     first_node = False
@@ -219,7 +282,14 @@ def is_valid_graph(graph: nx.MultiDiGraph) -> bool:
 
 
 def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: list) -> list:
-    '''TO FINISH'''
+    '''
+    Perform a depth-first search (DFS) traversal on a given graph starting from a specified node.
+
+    Input: Graph to perform DFS on, starting node for DFS traversal 
+    and List to store visited nodes during DFS traversal.
+
+    Returns list of visited nodes in the order they were visited.
+    '''
     if visited_list is None:
         visited_list = []
     visited_list.append(starting_node)
@@ -234,34 +304,41 @@ def _dfs_recursive(graph: nx.MultiDiGraph, starting_node: str, visited_list: lis
 
 
 def construct_dna_sequence(graph: nx.MultiDiGraph):
-    ''' TO FINISH'''
-    # check if graph is valid
-    if is_valid_graph(graph):
-        # add extra edge if graph is not eulerian yet
-        _make_eulerian_graph(graph)
-        # apply hierhozer algorithm to get sequence
-        sequence_index_list = _hozier_algorithm(
-            _from_edges_to_matrix(graph), 0, [])
-        # translate result into corresponding names of the nodes
-        sequence_list = [list(graph.nodes())[index]
-                         for index in sequence_index_list]
+    '''
+    Construct a DNA sequence from a given graph using Eulerian path/circuit.
 
-        # combine all nodes into full sequence
-        full_sequence = ''
-        for index, node in enumerate(sequence_list):
-            if index == 0:
-                full_sequence += node
-            else:
-                full_sequence += node[-1]
-        return full_sequence
+    Input: the input graph representing DNA sequences.
 
-    else:
-        # idk yet what i should do here/if this should be here
-        print('you enetred a graph where no path can be found')
+    Returns the constructed DNA sequence.
+    '''
+
+    # add extra edge if graph is not eulerian yet
+    _make_eulerian_graph(graph)
+    # apply hierhozer algorithm to get sequence
+    sequence_index_list = _hierholzer_algorithm(
+        _from_edges_to_matrix(graph), 0, [])
+    # translate result into corresponding names of the nodes
+    sequence_list = [list(graph.nodes())[index]
+                     for index in sequence_index_list]
+
+    # combine all nodes into full sequence
+    full_sequence = ''
+    for index, node in enumerate(sequence_list):
+        if index == 0:
+            full_sequence += node
+        else:
+            full_sequence += node[-1]
+    return full_sequence
 
 
 def _make_eulerian_graph(graph: nx.MultiDiGraph):
-    '''TO FINISH'''
+    '''
+    Make the given graph Eulerian by adding an edge to connect the beginning and ending nodes if necessary.
+
+    Input: Graph to check and possibly make Eulerian.
+
+    Returns Eulertian graph
+    '''
     # we know that graph is valid, so differ_degree is either 0 or 2
     # if 0, we have to do nothing
     # if 2, we have to connect beginning to ending node
@@ -274,10 +351,17 @@ def _make_eulerian_graph(graph: nx.MultiDiGraph):
             begin = node
     # if begin and end are defined, if not they are still '' and return False
     if begin and end:
-        graph.add_edge(begin, end)
+        graph.add_edge(end, begin)
 
 
-def _from_edges_to_matrix(graph: nx.MultiDiGraph) -> np.array:
+def _from_edges_to_matrix(graph: nx.MultiDiGraph):
+    '''
+    Convert the given graph's edge representation into a matrix.
+
+    Input: graph to convert.
+
+    Returns matrix representing the connections between nodes.
+    '''
     # make matrix with overview of connections between nodes
     edges_matrix = np.zeros(
         (graph.number_of_nodes(), graph.number_of_nodes()), dtype=int)
@@ -292,10 +376,14 @@ def _from_edges_to_matrix(graph: nx.MultiDiGraph) -> np.array:
     return edges_matrix
 
 
-def _hozier_algorithm(matrix: np.array, starting_row_index: int, full_sequence: list):
+def _hierholzer_algorithm(matrix, starting_row_index: int, full_sequence: list) -> list:
     '''
-    output: list of list, so for each list this is one 'loop', later we have to merge them into 
-    each other, also to do this we have to all the beginning node to the end of each list -> TO FINISH
+    Apply the Hierholzer's algorithm to find Eulerian circuits or paths in a graph.
+
+    Input: Matrix representing the graph's connections, index of the row to start the algorithm
+    and list to store the sequence of nodes.
+
+    Returns list representing the Eulerian path.
     '''
     # identify all values in this row that have a 1; meaning that they are an
     # ending node of this edge
@@ -305,7 +393,7 @@ def _hozier_algorithm(matrix: np.array, starting_row_index: int, full_sequence: 
         # remove edge from the edge_matrix
         matrix[starting_row_index][ending_node_index] -= 1
         # recursive function: look at edges or ending node
-        _hozier_algorithm(matrix, ending_node_index, full_sequence)
+        _hierholzer_algorithm(matrix, ending_node_index, full_sequence)
 
         # if we have completed a cycle and need to backtrack we are at the end
         # so we can add this node to our full_sequence list
@@ -313,35 +401,34 @@ def _hozier_algorithm(matrix: np.array, starting_row_index: int, full_sequence: 
 
         # stopping condition: if we have a matrix with all zeroes, all edges have been added
         if (matrix == np.zeros(matrix.shape, dtype=int)).all():
-            # transform list of indices of nodes into the string of the node
+            # full_sequence.append(ending_node_index)
             return full_sequence
 
 
 # Save DNA sequence or write the error message
-# testing
+
+def save_output(s: str, filename: str):
+    '''
+    Save the given string `s` to a text file with the specified `filename`.
+    '''
+    with open(f'{filename}.txt', mode='w') as dna_file:
+        dna_file.write(s)
+
+
+# for running the file from the command line
 if __name__ == "__main__":
-    # df_1 = read_csv('DNA_1_5.csv')
-    df_clean = pd.DataFrame(data=[
-        [1, 1, 0, 0, 0, 1],
-        [1, 2, 0, 0, 0, 1],
-        [1, 3, 0, 1, 0, 0],
-        [2, 1, 0, 0, 0, 1],
-        [2, 2, 0, 1, 0, 0],
-        [2, 3, 0, 1, 0, 0],
-        [2, 4, 1, 0, 0, 0],
-        [3, 1, 0, 0, 1, 0],
-        [3, 2, 1, 0, 0, 0],
-        [3, 3, 0, 1, 0, 0],
-        [3, 4, 1, 0, 0, 0],
-        [4, 1, 0, 0, 0, 1],
-        [5, 1, 0, 0, 0, 1],
-        [5, 2, 0, 1, 0, 0]],
-        columns=['SegmentNr', 'Position', 'A', 'C', 'G', 'T'])
-    json_file = generate_sequences(clean_data(df_clean))
-    G = construct_graph(json_file, 3)
-    json_file2 = '[{"SegmentNr":1,"Position":1,"A":1,"C":0,"G":0,"T":0},' + '{"SegmentNr":1,"Position":2,"A":0,"C":0,"G":0,"T":1},' + '{"SegmentNr":1,"Position":3,"A":0,"C":0,"G":1,"T":0},' + '{"SegmentNr":1,"Position":4,"A":1,"C":0,"G":0,"T":0},' + \
-        '{"SegmentNr":1,"Position":5,"A":0,"C":1,"G":0,"T":0},' + '{"SegmentNr":1,"Position":6,"A":0,"C":0,"G":0,"T":1},' + \
-        '{"SegmentNr":1,"Position":7,"A":0,"C":0,"G":1,"T":0},' + \
-        '{"SegmentNr":1,"Position":8,"A":1,"C":0,"G":0,"T":0},' + \
-        '{"SegmentNr":1,"Position":9,"A":1,"C":0,"G":0,"T":0}]'
-    G2 = construct_graph(json_file2, 3)
+    input_file = sys.argv[1]
+    _, x, k = input_file.split('_')
+    k, _ = k.split('.')
+
+    dna_dataframe = read_csv(input_file)
+    dna_clean_dataframe = clean_data(dna_dataframe)
+    dna_json = generate_sequences(dna_clean_dataframe)
+    db_graph = construct_graph(dna_json, int(k))
+    plot_graph(db_graph, f'DNA_{x}.png')
+    if is_valid_graph(db_graph):
+        to_write_string = construct_dna_sequence(db_graph)
+        print(to_write_string)
+    else:
+        to_write_string = 'DNA sequence can not be constructed.'
+    save_output(to_write_string, f'DNA_{x}')
